@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <DallasTemperature.h>
 #include <Ezo_i2c.h>
 #include <Wire.h>
 #include <menu.h>
@@ -12,7 +13,10 @@
 #define SCL_PIN 18
 #define SDA_PIN 19
 
-#define LEDPIN LED_BUILTIN
+#define ONE_WIRE_PIN 21
+
+#define LED_PIN LED_BUILTIN
+
 #define SELECT_PIN 13
 #define UP_PIN 12
 #define DOWN_PIN 14
@@ -28,6 +32,15 @@
 
 U8G2_SSD1306_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
 
+OneWire one_wire(ONE_WIRE_PIN);
+DallasTemperature dallas_sensor(&one_wire);
+DeviceAddress dallas_address;
+const uint8_t dallas_resolution = 12;
+bool found_dallas_sensor = false;
+float dallas_temperature_c = NAN;
+unsigned long dallas_request_ready_time_ms;
+bool dallas_request_phase = true;
+
 // define menu colors --------------------------------------------------------
 // each color is in the format:
 //  {{disabled normal,disabled selected},{enabled normal,enabled selected,
@@ -42,12 +55,36 @@ const Menu::colorDef<uint8_t> colors[6] MEMMODE = {
     {{1, 1}, {1, 0, 0}},  // titleColor
 };
 
+void performTemperatureReading() {
+  if (dallas_request_phase) {
+    // Serial.println("Requesting temperature");
+
+    dallas_sensor.requestTemperaturesByAddress(dallas_address);
+    dallas_request_ready_time_ms =
+        millis() + dallas_sensor.millisToWaitForConversion(dallas_resolution);
+    dallas_request_phase = false;
+  } else {
+    if (dallas_request_ready_time_ms < millis()) {
+      float temp_c = dallas_sensor.getTempC(dallas_address);
+      if (temp_c == DEVICE_DISCONNECTED_C) {
+        temp_c = NAN;
+        // Serial.println("Temperature reading failed");
+
+      } else {
+        // Serial.println("Temp *C: " + String(temp_c));
+        dallas_temperature_c = temp_c;
+      }
+      dallas_request_phase = true;
+    }
+  }
+}
+
 Ezo_board PH = Ezo_board(0x63, "PH");
 
-float ph_value = 0;
+float ph_value = NAN;
 Ezo_board::errors ph_error = Ezo_board::errors::FAIL;
 // Master on/off for enable pH meter readings
-bool enable_ph_meter = true;
+bool enable_ph_meter = false;
 
 // selects our phase
 bool reading_request_phase = true;
@@ -58,8 +95,16 @@ const unsigned int response_delay_ms = 1000;
 
 void checkPhMeter() {
   if (enable_ph_meter) {
+    performTemperatureReading();
+
     if (reading_request_phase) {
-      PH.send_read_cmd();
+      if (dallas_temperature_c != NAN) {
+        // Serial.println("pH measurement: " + String(dallas_temperature_c));
+        PH.send_read_with_temp_comp(dallas_temperature_c);
+      } else {
+        // Serial.println("pH measurement, no temperature");
+        PH.send_read_cmd();
+      }
 
       // set when the response will arrive
       next_poll_time_ms = millis() + response_delay_ms;
@@ -71,7 +116,7 @@ void checkPhMeter() {
 
         if (ph_error == Ezo_board::errors::SUCCESS) {
           ph_value = PH.get_last_received_reading();
-          Serial.println(ph_value);
+          // Serial.println(ph_value);
         }
 
         // switch back to asking for readings
@@ -102,8 +147,11 @@ void printPhStatus(menuOut& o) {
 }
 
 result alert(menuOut& o, idleEvent e) {
+  const char degree = 176;
+
   switch (e) {
     case Menu::idleStart:
+      // Serial.println("Starting ph measurement");
       enable_ph_meter = true;
       break;
     case Menu::idling:
@@ -111,11 +159,16 @@ result alert(menuOut& o, idleEvent e) {
       printPhStatus(o);
       o.setCursor(0, 1);
       o.print(ph_value);
-      o.print(" pH");
+      o.print(" pH  ");
+      o.print(dallas_temperature_c, 1);
+      o.print(" ");
+      o.print(degree);
+      o.print("C");
       o.setCursor(0, 3);
       o.print("Escape zu beenden");
       break;
     case Menu::idleEnd:
+      // Serial.println("Ending ph measurement");
       enable_ph_meter = false;
       break;
     default:
@@ -126,16 +179,6 @@ result alert(menuOut& o, idleEvent e) {
 }
 
 Menu::result doAlert(eventMask e, prompt& item);
-
-Menu::result enablePhMeter() {
-  enable_ph_meter = true;
-  return Menu::result::proceed;
-}
-
-Menu::result disablePhMeter() {
-  enable_ph_meter = true;
-  return Menu::result::proceed;
-}
 
 int ledCtrl = HIGH;
 
@@ -175,7 +218,6 @@ MENU_OUTPUTS(out, MAX_DEPTH,
 NAVROOT(nav, mainMenu, MAX_DEPTH, in, out);
 
 result doAlert(eventMask e, prompt& item) {
-  enablePhMeter();
   nav.idleOn(alert);
   return proceed;
 }
@@ -222,7 +264,7 @@ void setup() {
   while (!Serial)
     ;
 
-  pinMode(LEDPIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
 
   pinMode(SELECT_PIN, INPUT_PULLUP);
   pinMode(UP_PIN, INPUT_PULLUP);
@@ -233,6 +275,17 @@ void setup() {
   u8g2.begin();
   u8g2.setFont(fontName);
 
+  dallas_sensor.begin();
+  dallas_sensor.setWaitForConversion(false);
+  dallas_sensor.setResolution(12);
+
+  bool found_dallas_sensor = dallas_sensor.getAddress(dallas_address, 0);
+  if (!found_dallas_sensor) {
+    Serial.println("Nicht temperature kompensiert");
+  } else {
+    Serial.println("Dallas sensor gefunden");
+  }
+
   nav.idleTask = idle;
   Serial.println("setup done.");
   Serial.flush();
@@ -241,7 +294,8 @@ void setup() {
 void loop() {
   updateTimer();
 
-  if (request_update) {
+  // Run every 400 ms (update_duration) when measuring
+  if (request_update && enable_ph_meter) {
     request_update = false;
 
     checkPhMeter();
@@ -252,7 +306,7 @@ void loop() {
 
   nav.doInput();
 
-  digitalWrite(LEDPIN, ledCtrl);
+  digitalWrite(LED_PIN, ledCtrl);
   if (nav.changed(0)) {  // only draw if menu changed for gfx device
     updateDisplay();
   }
