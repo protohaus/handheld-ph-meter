@@ -2,7 +2,10 @@
 #include <DallasTemperature.h>
 #include <Ezo_i2c.h>
 #include <Wire.h>
-#include <menu.h>
+
+#include <items.h>
+#include <menuIo.h>
+#include <nav.h>
 #include <menuIO/chainStream.h>
 #include <menuIO/keyIn.h>
 #include <menuIO/serialIn.h>
@@ -17,10 +20,11 @@
 
 #define LED_PIN LED_BUILTIN
 
-#define SELECT_PIN 13
-#define UP_PIN 12
-#define DOWN_PIN 14
-#define ESC_PIN 27
+// The pin numbers don't seem to correspond to their actions...
+#define SELECT_PIN 27
+#define UP_PIN 14
+#define DOWN_PIN 13
+#define ESC_PIN 12
 
 #define fontName u8g2_font_7x13_mf
 #define fontX 7
@@ -46,7 +50,7 @@ bool dallas_request_phase = true;
 //  {{disabled normal,disabled selected},{enabled normal,enabled selected,
 //  enabled editing}}
 // this is a monochromatic color table
-const Menu::colorDef<uint8_t> colors[6] MEMMODE = {
+const colorDef<uint8_t> colors[6] MEMMODE = {
     {{0, 0}, {0, 1, 1}},  // bgColor
     {{1, 1}, {1, 0, 0}},  // fgColor
     {{1, 1}, {1, 0, 0}},  // valColor
@@ -126,7 +130,7 @@ void checkPhMeter() {
   }
 }
 
-void printPhStatus(menuOut& o) {
+void printPhStatus(Menu::menuOut& o) {
   switch (ph_error) {
     case Ezo_board::SUCCESS:
       o.print("Aktiv");
@@ -199,10 +203,10 @@ MENU(mainMenu, "pH Meter", doNothing, noEvent, wrapStyle,
 #define MAX_DEPTH 2
 
 Menu::keyMap joystickBtn_map[] = {
-    {-SELECT_PIN, defaultNavCodes[enterCmd].ch},
-    {-UP_PIN, defaultNavCodes[upCmd].ch},
-    {-DOWN_PIN, defaultNavCodes[downCmd].ch},
-    {-ESC_PIN, defaultNavCodes[escCmd].ch},
+    {-SELECT_PIN, defaultNavCodes[Menu::enterCmd].ch},
+    {-ESC_PIN, defaultNavCodes[Menu::escCmd].ch},
+    {-UP_PIN, defaultNavCodes[Menu::upCmd].ch},
+    {-DOWN_PIN, defaultNavCodes[Menu::downCmd].ch},
 };
 Menu::softKeyIn<4> joystickBtns(joystickBtn_map);
 
