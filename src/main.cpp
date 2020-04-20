@@ -1,24 +1,23 @@
 #include <Arduino.h>
-#include <DallasTemperature.h>
-#include <Ezo_i2c.h>
-#include <Wire.h>
-
 #include <items.h>
-#include <menuIo.h>
-#include <nav.h>
 #include <menuIO/chainStream.h>
 #include <menuIO/keyIn.h>
 #include <menuIO/serialIn.h>
 #include <menuIO/serialOut.h>
 #include <menuIO/softKeyIn.h>
 #include <menuIO/u8g2Out.h>
+#include <menuIo.h>
+#include <nav.h>
+
+#include "ph_io.h"
+// #include "ph_ui.h"
 
 #define SCL_PIN 18
 #define SDA_PIN 19
 
 #define ONE_WIRE_PIN 21
-
-#define LED_PIN LED_BUILTIN
+OneWire one_wire(ONE_WIRE_PIN);
+PhIo phIo(one_wire);
 
 // The pin numbers don't seem to correspond to their actions...
 #define SELECT_PIN 27
@@ -36,15 +35,6 @@
 
 U8G2_SSD1306_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
 
-OneWire one_wire(ONE_WIRE_PIN);
-DallasTemperature dallas_sensor(&one_wire);
-DeviceAddress dallas_address;
-const uint8_t dallas_resolution = 12;
-bool found_dallas_sensor = false;
-float dallas_temperature_c = NAN;
-unsigned long dallas_request_ready_time_ms;
-bool dallas_request_phase = true;
-
 // define menu colors --------------------------------------------------------
 // each color is in the format:
 //  {{disabled normal,disabled selected},{enabled normal,enabled selected,
@@ -59,79 +49,9 @@ const colorDef<uint8_t> colors[6] MEMMODE = {
     {{1, 1}, {1, 0, 0}},  // titleColor
 };
 
-void performTemperatureReading() {
-  if (dallas_request_phase) {
-    // Serial.println("Requesting temperature");
-
-    dallas_sensor.requestTemperaturesByAddress(dallas_address);
-    dallas_request_ready_time_ms =
-        millis() + dallas_sensor.millisToWaitForConversion(dallas_resolution);
-    dallas_request_phase = false;
-  } else {
-    if (dallas_request_ready_time_ms < millis()) {
-      float temp_c = dallas_sensor.getTempC(dallas_address);
-      if (temp_c == DEVICE_DISCONNECTED_C) {
-        temp_c = NAN;
-        // Serial.println("Temperature reading failed");
-
-      } else {
-        // Serial.println("Temp *C: " + String(temp_c));
-        dallas_temperature_c = temp_c;
-      }
-      dallas_request_phase = true;
-    }
-  }
-}
-
-Ezo_board PH = Ezo_board(0x63, "PH");
-
-float ph_value = NAN;
-Ezo_board::errors ph_error = Ezo_board::errors::FAIL;
-// Master on/off for enable pH meter readings
-bool enable_ph_meter = false;
-
-// selects our phase
-bool reading_request_phase = true;
-// holds the next time we receive a response, in milliseconds
-uint32_t next_poll_time_ms = 0;
-// how long we wait to receive a response, in milliseconds
-const unsigned int response_delay_ms = 1000;
-
-void checkPhMeter() {
-  if (enable_ph_meter) {
-    performTemperatureReading();
-
-    if (reading_request_phase) {
-      if (dallas_temperature_c != NAN) {
-        // Serial.println("pH measurement: " + String(dallas_temperature_c));
-        PH.send_read_with_temp_comp(dallas_temperature_c);
-      } else {
-        // Serial.println("pH measurement, no temperature");
-        PH.send_read_cmd();
-      }
-
-      // set when the response will arrive
-      next_poll_time_ms = millis() + response_delay_ms;
-      // switch to the receiving phase
-      reading_request_phase = false;
-    } else {
-      if (millis() >= next_poll_time_ms) {
-        ph_error = PH.receive_read_cmd();
-
-        if (ph_error == Ezo_board::errors::SUCCESS) {
-          ph_value = PH.get_last_received_reading();
-          // Serial.println(ph_value);
-        }
-
-        // switch back to asking for readings
-        reading_request_phase = true;
-      }
-    }
-  }
-}
-
 void printPhStatus(Menu::menuOut& o) {
-  switch (ph_error) {
+  auto ph_status = phIo.getStatus();
+  switch (std::get<0>(ph_status)) {
     case Ezo_board::SUCCESS:
       o.print("Aktiv");
       break;
@@ -149,22 +69,25 @@ void printPhStatus(Menu::menuOut& o) {
       break;
   }
 }
+result calibrate(menuOut& o, idleEvent e) {
+  return proceed;
+}
 
-result alert(menuOut& o, idleEvent e) {
+result measurement(menuOut& o, idleEvent e) {
   const char degree = 176;
 
   switch (e) {
     case Menu::idleStart:
       // Serial.println("Starting ph measurement");
-      enable_ph_meter = true;
+      phIo.enable();
       break;
     case Menu::idling:
       o.setCursor(0, 0);
       printPhStatus(o);
       o.setCursor(0, 1);
-      o.print(ph_value);
+      o.print(phIo.getCurrentPh());
       o.print(" pH  ");
-      o.print(dallas_temperature_c, 1);
+      o.print(phIo.getCurrentTemperatureC(), 1);
       o.print(" ");
       o.print(degree);
       o.print("C");
@@ -173,7 +96,7 @@ result alert(menuOut& o, idleEvent e) {
       break;
     case Menu::idleEnd:
       // Serial.println("Ending ph measurement");
-      enable_ph_meter = false;
+      phIo.disable();
       break;
     default:
       break;
@@ -182,22 +105,12 @@ result alert(menuOut& o, idleEvent e) {
   return proceed;
 }
 
-Menu::result doAlert(eventMask e, prompt& item);
-
-int ledCtrl = HIGH;
-
-Menu::result myLedOn() {
-  ledCtrl = HIGH;
-  return proceed;
-}
-Menu::result myLedOff() {
-  ledCtrl = LOW;
-  return proceed;
-}
+result doMeasurement(eventMask e, prompt& item);
+result doCalibration(eventMask e, prompt& item);
 
 MENU(mainMenu, "pH Meter", doNothing, noEvent, wrapStyle,
-     OP("Messung starten", doAlert, enterEvent),
-     OP("LED On", myLedOn, enterEvent), OP("LED Off", myLedOff, enterEvent),
+     OP("Messung starten", doMeasurement, enterEvent),
+     OP("Kalibrieren", doCalibration, enterEvent),
      EXIT("<Exit"));
 
 #define MAX_DEPTH 2
@@ -221,8 +134,13 @@ MENU_OUTPUTS(out, MAX_DEPTH,
 
 NAVROOT(nav, mainMenu, MAX_DEPTH, in, out);
 
-result doAlert(eventMask e, prompt& item) {
-  nav.idleOn(alert);
+result doMeasurement(eventMask e, prompt& item) {
+  nav.idleOn(measurement);
+  return proceed;
+}
+
+result doCalibration(eventMask e, prompt& item) {
+  nav.idleOn(calibrate);
   return proceed;
 }
 
@@ -265,10 +183,8 @@ void updateTimer() {
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial)
-    ;
-
-  pinMode(LED_PIN, OUTPUT);
+  while (!Serial) {
+  }
 
   pinMode(SELECT_PIN, INPUT_PULLUP);
   pinMode(UP_PIN, INPUT_PULLUP);
@@ -279,17 +195,6 @@ void setup() {
   u8g2.begin();
   u8g2.setFont(fontName);
 
-  dallas_sensor.begin();
-  dallas_sensor.setWaitForConversion(false);
-  dallas_sensor.setResolution(12);
-
-  bool found_dallas_sensor = dallas_sensor.getAddress(dallas_address, 0);
-  if (!found_dallas_sensor) {
-    Serial.println("Nicht temperature kompensiert");
-  } else {
-    Serial.println("Dallas sensor gefunden");
-  }
-
   nav.idleTask = idle;
   Serial.println("setup done.");
   Serial.flush();
@@ -299,10 +204,10 @@ void loop() {
   updateTimer();
 
   // Run every 400 ms (update_duration) when measuring
-  if (request_update && enable_ph_meter) {
+  if (request_update && phIo.isEnabled()) {
     request_update = false;
 
-    checkPhMeter();
+    phIo.update();
 
     nav.idleChanged = true;
     nav.refresh();
@@ -310,7 +215,6 @@ void loop() {
 
   nav.doInput();
 
-  digitalWrite(LED_PIN, ledCtrl);
   if (nav.changed(0)) {  // only draw if menu changed for gfx device
     updateDisplay();
   }
