@@ -223,458 +223,190 @@
 //   nav.doOutput();
 // }
 
-// include libs
-#include <LCDMenuLib2.h>
-
-// U8g2lib
-#include <Arduino.h>
-#include <U8g2lib.h>
-#include <Wire.h>
-
-#include "lcdml_utils.h"
-// *********************************************************************
-// U8GLIB
-// *********************************************************************
-#define fontName u8g2_font_7x13_mf
-#define fontX 7
-#define fontY 15
-#define U8_Width 128
-#define U8_Height 64
-
-U8G2_SSD1306_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
-
-// settings for u8g lib and LCD
-#define _LCDML_DISP_w U8_Width   // LCD width
-#define _LCDML_DISP_h U8_Height  // LCD height
-// font settings
-#define _LCDML_DISP_font fontName  // u8glib font (u8g.h:1520)
-#define _LCDML_DISP_font_w fontX   // font width
-#define _LCDML_DISP_font_h fontY   // font height
-// cursor settings
-#define _LCDML_DISP_cursor_char "X"     // cursor char
-#define _LCDML_DISP_cur_space_before 2  // cursor space between
-#define _LCDML_DISP_cur_space_behind 4  // cursor space between
-// menu position and size
-#define _LCDML_DISP_box_x0 0      // start point (x0, y0)
-#define _LCDML_DISP_box_y0 0      // start point (x0, y0)
-#define _LCDML_DISP_box_x1 128    // width x  (x0 + width)
-#define _LCDML_DISP_box_y1 64     // hight y  (y0 + height)
-#define _LCDML_DISP_draw_frame 0  // draw a box around the menu
-
-#define _LCDML_DISP_scrollbar_w 6  // scrollbar width (disabled if < 3)
-
-// nothing change here
-#define _LCDML_DISP_cols_max \
-  ((_LCDML_DISP_box_x1 - _LCDML_DISP_box_x0) / _LCDML_DISP_font_w)
-#define _LCDML_DISP_rows_max                                            \
-  ((_LCDML_DISP_box_y1 - _LCDML_DISP_box_y0 -                           \
-    ((_LCDML_DISP_box_y1 - _LCDML_DISP_box_y0) / _LCDML_DISP_font_h)) / \
-   _LCDML_DISP_font_h)
-
-// rows and cols
-// when you use more rows or cols as allowed change in LCDMenuLib.h the define
-// "_LCDML_DISP_cfg_max_rows" and "_LCDML_DISP_cfg_max_string_length" the
-// program needs more ram with this changes
-#define _LCDML_DISP_rows _LCDML_DISP_rows_max  // max rows
-#define _LCDML_DISP_cols 20                    // max cols
-
-// *********************************************************************
-// Objects
-// *********************************************************************
-
-void lcdml_menu_display();
-void lcdml_menu_clear();
-void lcdml_menu_control();
-
-// root menu element (do not change)
-LCDMenuLib2_menu LCDML_0(255, 0, 0, NULL, NULL);
-LCDMenuLib2 LCDML(LCDML_0, _LCDML_DISP_rows, _LCDML_DISP_cols,
-                  lcdml_menu_display, lcdml_menu_clear, lcdml_menu_control);
-
-// *********************************************************************
-// Prototypes
-// *********************************************************************
-
-LcdmlUtils lcdml_utils(LCDML, u8g2,
-                       {.disp_font = fontName,
-                        .disp_font_h = fontY,
-                        .disp_font_w = fontX,
-                        .disp_box_x0 = _LCDML_DISP_box_x0,
-                        .disp_box_y0 = _LCDML_DISP_box_y0,
-                        .disp_cur_space_behind = _LCDML_DISP_cur_space_behind});
-
-#define _LCDML_CONTROL_cfg 2
-
-void mFunc_information(uint8_t param) { lcdml_utils.information(param); }
-void mFunc_timer_info(uint8_t param) { lcdml_utils.timer_info(param); }
-void mFunc_p2(uint8_t param) { lcdml_utils.p2(param); }
-void mFunc_screensaver(uint8_t param) { lcdml_utils.screensaver(param); }
-void mFunc_back(uint8_t param) { lcdml_utils.back(param); }
-void mFunc_goToRootMenu(uint8_t param) { lcdml_utils.goToRootMenu(param); }
-void mFunc_para(uint8_t param) { lcdml_utils.para(param); }
-void mDyn_para(uint8_t line) { lcdml_utils.dyn_para(line); }
-boolean COND_hide();
-
-// *********************************************************************
-// LCDML MENU/DISP
-// *********************************************************************
-// LCDML_0        => layer 0
-// LCDML_0_X      => layer 1
-// LCDML_0_X_X    => layer 2
-// LCDML_0_X_X_X  => layer 3
-// LCDML_0_...      => layer ...
-
-// For beginners
-// LCDML_add(id, prev_layer, new_num, lang_char_array, callback_function)
-LCDML_add(0, LCDML_0, 1, "Information",
-          mFunc_information);  // this menu function can be found on
-                               // "LCDML_display_menuFunction" tab
-LCDML_add(1, LCDML_0, 2, "Time info",
-          mFunc_timer_info);  // this menu function can be found on
-                              // "LCDML_display_menuFunction" tab
-LCDML_add(2, LCDML_0, 3, "Program", NULL);          // NULL = no menu function
-LCDML_add(3, LCDML_0_3, 1, "Program 1", NULL);      // NULL = no menu function
-LCDML_add(4, LCDML_0_3_1, 1, "P1 dummy", NULL);     // NULL = no menu function
-LCDML_add(5, LCDML_0_3_1, 2, "P1 Settings", NULL);  // NULL = no menu function
-LCDML_add(6, LCDML_0_3_1_2, 1, "Warm", NULL);       // NULL = no menu function
-LCDML_add(7, LCDML_0_3_1_2, 2, "Cold", NULL);       // NULL = no menu function
-LCDML_add(8, LCDML_0_3_1_2, 3, "Back",
-          mFunc_back);  // this menu function can be found on
-                        // "LCDML_display_menuFunction" tab
-LCDML_add(9, LCDML_0_3_1, 3, "Back",
-          mFunc_back);  // this menu function can be found on
-                        // "LCDML_display_menuFunction" tab
-LCDML_add(10, LCDML_0_3, 2, "Program 2",
-          mFunc_p2);  // this menu function can be found on
-                      // "LCDML_display_menuFunction" tab
-LCDML_add(11, LCDML_0_3, 3, "Back",
-          mFunc_back);  // this menu function can be found on
-                        // "LCDML_display_menuFunction" tab
-LCDML_add(12, LCDML_0, 4, "Special", NULL);  // NULL = no menu function
-LCDML_add(13, LCDML_0_4, 1, "Go to Root",
-          mFunc_goToRootMenu);  // this menu function can be found on
-                                // "LCDML_display_menuFunction" tab
-LCDML_add(14, LCDML_0_4, 2, "Back",
-          mFunc_back);  // this menu function can be found on
-                        // "LCDML_display_menuFunction" tab
-
-// Advanced menu (for profit) part with more settings
-// Example for one function and different parameters
-// It is recommend to use parameters for switching settings like, (small drink,
-// medium drink, big drink) or (200ml, 400ml, 600ml, 800ml) ... the parameter
-// change can also be released with dynParams on the next example
-// LCDMenuLib_add(id, prev_layer,     new_num, condition,   lang_char_array,
-// callback_function, parameter (0-255), menu function type  )
-LCDML_addAdvanced(15, LCDML_0, 5, NULL, "Parameter", NULL, 0,
-                  _LCDML_TYPE_default);  // NULL = no menu function
-LCDML_addAdvanced(16, LCDML_0_5, 1, NULL, "Parameter 1", mFunc_para, 10,
-                  _LCDML_TYPE_default);  // NULL = no menu function
-LCDML_addAdvanced(17, LCDML_0_5, 2, NULL, "Parameter 2", mFunc_para, 20,
-                  _LCDML_TYPE_default);  // NULL = no menu function
-LCDML_addAdvanced(18, LCDML_0_5, 3, NULL, "Parameter 3", mFunc_para, 30,
-                  _LCDML_TYPE_default);  // NULL = no menu function
-LCDML_add(19, LCDML_0_5, 4, "Back",
-          mFunc_back);  // this menu function can be found on
-                        // "LCDML_display_menuFunction" tab
-
-// Example for dynamic content
-// 1. set the string to ""
-// 2. use type  _LCDML_TYPE_dynParam   instead of    _LCDML_TYPE_default
-// this function type can not be used in combination with different parameters
-// LCDMenuLib_add(id, prev_layer,     new_num, condition,   lang_char_array,
-// callback_function, parameter (0-255), menu function type  )
-LCDML_addAdvanced(20, LCDML_0, 6, NULL, "", mDyn_para, 0,
-                  _LCDML_TYPE_dynParam);  // NULL = no menu function
-
-// Example for conditions (for example for a screensaver)
-// 1. define a condition as a function of a boolean type -> return false = not
-// displayed, return true = displayed
-// 2. set the function name as callback (remove the braces '()' it gives bad
-// errors) LCDMenuLib_add(id, prev_layer,     new_num, condition,
-// lang_char_array, callback_function, parameter (0-255), menu function type  )
-LCDML_addAdvanced(21, LCDML_0, 7, COND_hide, "screensaver", mFunc_screensaver,
-                  0,
-                  _LCDML_TYPE_default);  // this menu function can be found on
-                                         // "LCDML_display_menuFunction" tab
-
-// ***TIP*** Try to update _LCDML_DISP_cnt when you add a menu element.
-
-// menu element count - last element id
-// this value must be the same as the last menu element
-#define _LCDML_DISP_cnt 21
-
-// create menu
-LCDML_createMenu(_LCDML_DISP_cnt);
-
-// *********************************************************************
-// SETUP
-// *********************************************************************
-void setup() {
-  Wire.begin(19, 18);
-
-  u8g2.begin();
-
-  // serial init; only be needed if serial control is used
-  Serial.begin(115200);               // start serial
-  Serial.println(F(_LCDML_VERSION));  // only for examples
-
-  // LCDMenuLib Setup
-  LCDML_setup(_LCDML_DISP_cnt);
-
-  // Enable Menu Rollover
-  LCDML.MENU_enRollover();
-
-  // Enable Screensaver (screensaver menu function, time to activate in ms)
-  LCDML.SCREEN_enable(mFunc_screensaver, 10000);  // set to 10 seconds
-  // LCDML.SCREEN_disable();
-
-  // Some needful methods
-
-  // You can jump to a menu function from anywhere with
-  // LCDML.OTHER_jumpToFunc(mFunc_p2); // the parameter is the function name
-}
-
-// *********************************************************************
-// LOOP
-// *********************************************************************
-void loop() {
-  // this function must called here, do not delete it
-  LCDML.loop();
-}
-
-// *********************************************************************
-// check some errors - do not change here anything
-// *********************************************************************
-#if (_LCDML_glcd_tft_box_x1 > _LCDML_glcd_tft_w)
-#error _LCDML_glcd_tft_box_x1 is to big
-#endif
-
-#if (_LCDML_glcd_tft_box_y1 > _LCDML_glcd_tft_h)
-#error _LCDML_glcd_tft_box_y1 is to big
-#endif
-
-/* ===================================================================== *
- *                                                                       *
- * Conditions to show or hide a menu element on the display              *
- *                                                                       *
- * ===================================================================== *
+/**
+ * ESP8266 example of the *simplest* possible menu on u8g2.
+ *
+ * This example shows about the most basic example possible and should be useful
+ * for anyone trying to get started with either adafruit graphics or u8g2. It is
+ * missing title widgets, remote capabilities, EEPROM storage and many other
+ * things but makes for the simplest possible starting point for a graphical
+ * build.
+ *
+ * The circuit uses a PCF8574 for the input using a rotary encoder, a common
+ * configuration.
  */
 
-// *********************************************************************
-boolean COND_hide()  // hide a menu element
-// *********************************************************************
-{
-  return false;  // hidden
+#include <IoAbstractionWire.h>
+#include <Wire.h>
+
+#include "ph_io.h"
+#include "simpleU8g2_menu.h"
+
+// the width and height of the attached OLED display.
+#define OLED_WIDTH 128
+#define OLED_HEIGHT 64
+
+// Here we declare the variable using exactly the name that we used in the
+// designers code generator panel for the graphics variable. The name and
+// type must match exactly
+// U8G2_SSD1306_128X64_NONAME_F_SW_I2C gfx(U8G2_R0, 5, 4);
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C gfx(U8G2_R0, U8X8_PIN_NONE);
+
+const uint one_wire_pin = 21;
+OneWire one_wire(one_wire_pin);
+PhIo phIo(one_wire);
+
+//
+// In a tcMenu application, before calling setupMenu it's your responsibility to
+// ensure that the display you're going to use is ready for drawing. You also
+// need to start wire if you have any I2C devices. Here I start serial for some
+// printing in the callback.
+//
+void setup() {
+  // If you use i2c devices, be sure to start wire.
+  Wire.begin(19, 18);
+  phIo.init();
+
+  Serial.begin(115200);
+
+  // start up the display. Important, the rendering expects this has been done.
+  gfx.begin();
+
+  // This is added by tcMenu Designer automatically during the first setup.
+  setupMenu();
+
+  taskManager.scheduleFixedRate(100, &phIo);
+  menuCalibrationTolerance.setFromFloatingPointValue(
+      phIo.getCalibrationTolerance());
+  menuStableReadingTotal.setCurrentValue(phIo.getStableReadingTotal());
 }
 
-// =====================================================================
 //
-// Output function
+// In any IoAbstraction based application you'll normally use tasks via
+// taskManager instead of writing code in loop. You are free to write code here
+// as long as it does not delay or block execution. Otherwise task manager will
+// be blocked.
 //
-// =====================================================================
+void loop() { taskManager.runLoop(); }
 
-/* ******************************************************************** */
-void lcdml_menu_clear()
-/* ******************************************************************** */
-{}
-
-/* ******************************************************************** */
-void lcdml_menu_display()
-/* ******************************************************************** */
-{
-  // for first test set font here
-  u8g2.setFont(_LCDML_DISP_font);
-
-  // declaration of some variables
-  // ***************
-  // content variable
-  char content_text[_LCDML_DISP_cols];  // save the content text of every menu
-                                        // element
-  // menu element object
-  LCDMenuLib2_menu *tmp;
-  // some limit values
-  uint8_t i = LCDML.MENU_getScroll();
-  uint8_t maxi = _LCDML_DISP_rows + i;
-  uint8_t n = 0;
-
-  // init vars
-  uint8_t n_max = (LCDML.MENU_getChilds() >= _LCDML_DISP_rows)
-                      ? _LCDML_DISP_rows
-                      : (LCDML.MENU_getChilds());
-
-  uint8_t scrollbar_min = 0;
-  uint8_t scrollbar_max = LCDML.MENU_getChilds();
-  uint8_t scrollbar_cur_pos = LCDML.MENU_getCursorPosAbs();
-  uint8_t scroll_pos = ((1. * n_max * _LCDML_DISP_rows) / (scrollbar_max - 1) *
-                        scrollbar_cur_pos);
-
-  // generate content
-  u8g2.firstPage();
-  do {
-    n = 0;
-    i = LCDML.MENU_getScroll();
-    // update content
-    // ***************
-
-    // clear menu
-    // ***************
-
-    // check if this element has children
-    if ((tmp = LCDML.MENU_getDisplayedObj()) != NULL) {
-      // loop to display lines
-      do {
-        // check if a menu element has a condition and if the condition be true
-        if (tmp->checkCondition()) {
-          // check the type off a menu element
-          if (tmp->checkType_menu() == true) {
-            // display normal content
-            LCDML_getContent(content_text, tmp->getID());
-            u8g2.drawStr(_LCDML_DISP_box_x0 + _LCDML_DISP_font_w +
-                             _LCDML_DISP_cur_space_behind,
-                         _LCDML_DISP_box_y0 + _LCDML_DISP_font_h * (n + 1),
-                         content_text);
-          } else {
-            if (tmp->checkType_dynParam()) {
-              tmp->callback(n);
-            }
-          }
-          // increment some values
-          i++;
-          n++;
-        }
-        // try to go to the next sibling and check the number of displayed rows
-      } while (((tmp = tmp->getSibling(1)) != NULL) && (i < maxi));
-    }
-
-    // set cursor
-    u8g2.drawStr(_LCDML_DISP_box_x0 + _LCDML_DISP_cur_space_before,
-                 _LCDML_DISP_box_y0 +
-                     _LCDML_DISP_font_h * (LCDML.MENU_getCursorPos() + 1),
-                 _LCDML_DISP_cursor_char);
-
-    if (_LCDML_DISP_draw_frame == 1) {
-      u8g2.drawFrame(_LCDML_DISP_box_x0, _LCDML_DISP_box_y0,
-                     (_LCDML_DISP_box_x1 - _LCDML_DISP_box_x0),
-                     (_LCDML_DISP_box_y1 - _LCDML_DISP_box_y0));
-    }
-
-    // display scrollbar when more content as rows available and with > 2
-    if (scrollbar_max > n_max && _LCDML_DISP_scrollbar_w > 2) {
-      // set frame for scrollbar
-      u8g2.drawFrame(_LCDML_DISP_box_x1 - _LCDML_DISP_scrollbar_w,
-                     _LCDML_DISP_box_y0, _LCDML_DISP_scrollbar_w,
-                     _LCDML_DISP_box_y1 - _LCDML_DISP_box_y0);
-
-      // calculate scrollbar length
-      uint8_t scrollbar_block_length = scrollbar_max - n_max;
-      scrollbar_block_length = (_LCDML_DISP_box_y1 - _LCDML_DISP_box_y0) /
-                               (scrollbar_block_length + _LCDML_DISP_rows);
-
-      // set scrollbar
-      if (scrollbar_cur_pos == 0) {  // top position     (min)
-        u8g2.drawBox(_LCDML_DISP_box_x1 - (_LCDML_DISP_scrollbar_w - 1),
-                     _LCDML_DISP_box_y0 + 1, (_LCDML_DISP_scrollbar_w - 2),
-                     scrollbar_block_length);
-      } else if (scrollbar_cur_pos ==
-                 (scrollbar_max - 1)) {  // bottom position  (max)
-        u8g2.drawBox(_LCDML_DISP_box_x1 - (_LCDML_DISP_scrollbar_w - 1),
-                     _LCDML_DISP_box_y1 - scrollbar_block_length,
-                     (_LCDML_DISP_scrollbar_w - 2), scrollbar_block_length);
-      } else {  // between top and bottom
-        u8g2.drawBox(_LCDML_DISP_box_x1 - (_LCDML_DISP_scrollbar_w - 1),
-                     _LCDML_DISP_box_y0 +
-                         (scrollbar_block_length * scrollbar_cur_pos + 1),
-                     (_LCDML_DISP_scrollbar_w - 2), scrollbar_block_length);
-      }
-    }
-  } while (u8g2.nextPage());
+void displayMeasuring(unsigned int encoderValue, RenderPressMode clicked);
+void CALLBACK_FUNCTION onStartMeasuring(int id) {
+  phIo.enable();
+  renderer.takeOverDisplay(displayMeasuring);
 }
 
-// *********************************************************************
-// *************** (2) CONTROL OVER DIGITAL PINS ***********************
-// *********************************************************************
-// settings
-unsigned long g_LCDML_DISP_press_time = 0;
+void CALLBACK_FUNCTION onStartCalibrate7Ph(int id) {
+  phIo.calibrate(PhIo::CalibrationState::MID_POINT);
+  renderer.takeOverDisplay(displayMeasuring);
+}
 
-#define _LCDML_CONTROL_digital_low_active \
-  1  // 0 = high active (pulldown) button, 1 = low active (pullup)
-     // http://playground.arduino.cc/CommonTopics/PullUpDownResistor
-#define _LCDML_CONTROL_digital_enable_quit 1
-#define _LCDML_CONTROL_digital_enable_lr 0
-#define _LCDML_CONTROL_digital_enter 27
-#define _LCDML_CONTROL_digital_up 13
-#define _LCDML_CONTROL_digital_down 14
-#define _LCDML_CONTROL_digital_quit 12
-#define _LCDML_CONTROL_digital_left 34
-#define _LCDML_CONTROL_digital_right 34
-// *********************************************************************
-void lcdml_menu_control(void) {
-  // If something must init, put in in the setup condition
-  if (LCDML.BT_setup()) {
-    // runs only once
-    // init buttons
-    pinMode(_LCDML_CONTROL_digital_enter, INPUT_PULLUP);
-    pinMode(_LCDML_CONTROL_digital_up, INPUT_PULLUP);
-    pinMode(_LCDML_CONTROL_digital_down, INPUT_PULLUP);
-#if (_LCDML_CONTROL_digital_enable_quit == 1)
-    pinMode(_LCDML_CONTROL_digital_quit, INPUT_PULLUP);
-#endif
-#if (_LCDML_CONTROL_digital_enable_lr == 1)
-    pinMode(_LCDML_CONTROL_digital_left, INPUT_PULLUP);
-    pinMode(_LCDML_CONTROL_digital_right, INPUT_PULLUP);
-#endif
-  }
+void CALLBACK_FUNCTION onStartCalibrate4Ph(int id) {
+  phIo.calibrate(PhIo::CalibrationState::LOW_POINT);
+  renderer.takeOverDisplay(displayMeasuring);
+}
 
-#if (_LCDML_CONTROL_digital_low_active == 1)
-#define _LCDML_CONTROL_digital_a !
-#else
-#define _LCDML_CONTROL_digital_a
-#endif
-
-  uint8_t but_stat = 0x00;
-
-  bitWrite(but_stat, 0,
-           _LCDML_CONTROL_digital_a(digitalRead(_LCDML_CONTROL_digital_enter)));
-  bitWrite(but_stat, 1,
-           _LCDML_CONTROL_digital_a(digitalRead(_LCDML_CONTROL_digital_up)));
-  bitWrite(but_stat, 2,
-           _LCDML_CONTROL_digital_a(digitalRead(_LCDML_CONTROL_digital_down)));
-#if (_LCDML_CONTROL_digital_enable_quit == 1)
-  bitWrite(but_stat, 3,
-           _LCDML_CONTROL_digital_a(digitalRead(_LCDML_CONTROL_digital_quit)));
-#endif
-#if (_LCDML_CONTROL_digital_enable_lr == 1)
-  bitWrite(but_stat, 4,
-           _LCDML_CONTROL_digital_a(digitalRead(_LCDML_CONTROL_digital_left)));
-  bitWrite(but_stat, 5,
-           _LCDML_CONTROL_digital_a(digitalRead(_LCDML_CONTROL_digital_right)));
-#endif
-
-  if (but_stat > 0) {
-    if ((millis() - g_LCDML_DISP_press_time) >= 200) {
-      g_LCDML_DISP_press_time = millis();  // reset press time
-
-      if (bitRead(but_stat, 0)) {
-        LCDML.BT_enter();
-      }
-      if (bitRead(but_stat, 1)) {
-        LCDML.BT_up();
-      }
-      if (bitRead(but_stat, 2)) {
-        LCDML.BT_down();
-      }
-      if (bitRead(but_stat, 3)) {
-        LCDML.BT_quit();
-      }
-      if (bitRead(but_stat, 4)) {
-        LCDML.BT_left();
-      }
-      if (bitRead(but_stat, 5)) {
-        LCDML.BT_right();
-      }
+void drawPhIoStatus(PhIo::Status ph_io_status);
+void drawCalibrateStatus(PhIo::Status ph_io_status);
+void displayMeasuring(unsigned int encoderValue, RenderPressMode clicked) {
+  PhIo::Status ph_io_status = phIo.getStatus();
+  if (clicked) {
+    phIo.disable();
+    renderer.giveBackDisplay();
+  } else {
+    gfx.clearBuffer();
+    drawPhIoStatus(ph_io_status);
+    if (std::get<2>(ph_io_status) != PhIo::CalibrationState::NOT_CALIBRATING) {
+      drawCalibrateStatus(ph_io_status);
     }
+    gfx.sendBuffer();
   }
 }
-// *********************************************************************
-// ******************************* END *********************************
-// *********************************************************************
+
+void drawPhIoStatus(PhIo::Status ph_io_status) {
+  gfx.setCursor(0, 20);
+  gfx.setFont(gfxConfig.titleFont);
+  gfx.print("pH: ");
+  gfx.setFont(u8g2_font_open_iconic_check_1x_t);
+  switch (std::get<0>(ph_io_status)) {
+    case Ezo_board::errors::SUCCESS:
+      gfx.print("\x40");
+      break;
+    case Ezo_board::errors::NO_DATA:
+      gfx.print("\x43");
+      break;
+    case Ezo_board::errors::FAIL:
+    default:
+      gfx.print("\x44");
+      break;
+  }
+
+  gfx.setFont(gfxConfig.titleFont);
+  gfx.print(" Temp: ");
+  gfx.setFont(u8g2_font_open_iconic_check_1x_t);
+  switch (std::get<1>(ph_io_status)) {
+    case PhIo::DallasError::SUCCESS:
+      gfx.print("\x40");
+      break;
+    case PhIo::DallasError::NO_DATA:
+      gfx.print("\x43");
+      break;
+    case PhIo::DallasError::DISCONNETED:
+    default:
+      gfx.print("\x44");
+      break;
+  }
+
+  gfx.setFont(gfxConfig.titleFont);
+  gfx.printf(
+      "  %4.1f\xb0"
+      "C",
+      phIo.getTemperatureC());
+
+  gfx.setCursor(0, 62);
+  gfx.setFont(u8g2_font_courB18_tr);
+  gfx.printf("%4.2f pH", phIo.getPh());
+}
+
+void drawCalibrateStatus(PhIo::Status ph_io_status) {
+  gfx.setCursor(0, 34);
+
+  gfx.setFont(u8g2_font_open_iconic_check_1x_t);
+  if (phIo.isCalibrationPointDone()) {
+    phIo.completeCalibration();
+    phIo.disable();
+    renderer.giveBackDisplay();
+    gfx.print("\x40");
+  } else {
+    gfx.print("\x44");
+  }
+  gfx.setFont(gfxConfig.titleFont);
+  gfx.printf(" %.0f pH ", phIo.getCalibrationTarget());
+
+  gfx.printf("SD:%4.2f %d/%d", phIo.getCalibrationStdDev(),
+             phIo.getStableReadingCount(), phIo.getStableReadingTotal());
+}
+
+void confirmCalibration(unsigned int encoderValue, RenderPressMode clicked);
+void CALLBACK_FUNCTION onConfirmCalibration(int id) {
+  phIo.calibrate(PhIo::CalibrationState::LOW_POINT);
+  renderer.takeOverDisplay(confirmCalibration);
+}
+
+void CALLBACK_FUNCTION onUpdateCalibrationTolerance(int id) {
+  MenuItem* menu_item = menuMgr.getCurrentEditor();
+  if (menu_item) {
+    AnalogMenuItem* analog_menu_item = static_cast<AnalogMenuItem*>(menu_item);
+    float value = phIo.setCalibrationTolerance(analog_menu_item->getAsFloatingPointValue());
+    analog_menu_item->setFromFloatingPointValue(value);
+  }
+}
+
+void CALLBACK_FUNCTION onUpdateStableReadingTotal(int id) {
+  MenuItem* menu_item = menuMgr.getCurrentEditor();
+  if (menu_item) {
+    AnalogMenuItem* analog_menu_item = static_cast<AnalogMenuItem*>(menu_item);
+    uint8_t value =
+        phIo.setStableReadingTotal(analog_menu_item->getCurrentValue());
+    analog_menu_item->setCurrentValue(value);
+  }
+}

@@ -3,10 +3,11 @@
 #include <DallasTemperature.h>
 #include <Ezo_i2c.h>
 #include <Wire.h>
+#include <TaskManager.h>
 
 #include <tuple>
 
-class PhIo {
+class PhIo : public Executable {
  public:
   enum class DallasError { SUCCESS, NO_DATA, DISCONNETED };
   enum class CalibrationState {
@@ -15,6 +16,8 @@ class PhIo {
     MID_POINT,
     HIGH_POINT
   };
+  typedef std::tuple<Ezo_board::errors, PhIo::DallasError, PhIo::CalibrationState> Status;
+  typedef std::array<float, 30> CalibrationBuffer;
 
   PhIo(OneWire& one_wire);
   void init();
@@ -22,20 +25,32 @@ class PhIo {
   bool isEnabled();
   void disable();
 
-  std::tuple<Ezo_board::errors, PhIo::DallasError, PhIo::CalibrationState>
-  getStatus();
-  float getCurrentPh();
-  float getCurrentTemperatureC();
+  
+  Status getStatus();
+  float getPh();
+  float getTemperatureC();
 
-  void update();
+  void exec();
 
   void calibrate(CalibrationState calibration_state);
   bool isCalibrationPointDone();
+  float getCalibrationStdDev();
+  float getCalibrationTolerance();
+  float setCalibrationTolerance(float tolerance_std_dev);
+  uint8_t getCalibrationTotal();
+  uint8_t getCalibrationCount();
+  uint8_t getStableReadingCount();
+  uint8_t setStableReadingTotal(uint8_t stable_reading_total);
+  uint8_t getStableReadingTotal();
+  float getCalibrationTarget();
+  bool completeCalibration(bool override=false);
+  void clearCalibration();
 
  private:
   void performTemperatureReading();
   void performPhReading();
   void performCalibration();
+  void updateStableReadingCount();
   void addCalibrationPoint(float ph_value_);
 
   Ezo_board PH = Ezo_board(0x63, "PH");
@@ -61,7 +76,13 @@ class PhIo {
   const unsigned int response_delay_ms_ = 1000;
 
   CalibrationState calibration_state_ = CalibrationState::NOT_CALIBRATING;
-  std::array<float, 20> calibration_measurements_;
+  CalibrationBuffer calibration_measurements_;
   uint8_t calibration_position_ = 0;
-  float calibration_tolerance = 0.02;
+  float calibration_tolerance_ = 0.02;
+  float calibration_max_offset_ = 1.5;
+  float calibration_average_ = NAN;
+  float calibration_std_dev_ = NAN;
+  bool calibration_is_full_ = false;
+  uint8_t stable_reading_count_ = 0;
+  uint8_t stable_reading_total_ = 20;
 };
