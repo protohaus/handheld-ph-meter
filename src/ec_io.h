@@ -62,6 +62,7 @@ class EcIo : public Executable {
   void performCalibration();
   void updateStableReadingCount();
   void addCalibrationPoint(float ph_value);
+  void sendProbeType();
 
   Ezo_board ec_sensor_;
   ProbeType probe_type_;

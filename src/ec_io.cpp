@@ -28,6 +28,8 @@ void EcIo::init() {
     dallas_status_ = DallasError::NO_DATA;
     Serial.println("Dallas sensor gefunden");
   }
+
+  sendProbeType();
 }
 
 void EcIo::enable() { enabled_ = true; }
@@ -112,7 +114,7 @@ EcIo::CalibrationPoint EcIo::getNextCalibration() {
   } else {
     return std::make_tuple(CalibrationState::NOT_CALIBRATING,
                            CalibrationReference::INVALID);
-  }  
+  }
 }
 
 float EcIo::getCalibrationStdDev() { return calibration_std_dev_; }
@@ -326,5 +328,22 @@ void EcIo::addCalibrationPoint(float ec_value) {
   if (calibration_position_ >= calibration_measurements_.size()) {
     calibration_position_ = 0;
     calibration_is_full_ = true;
+  }
+}
+
+void EcIo::sendProbeType() {
+  switch (probe_type_) {
+    case ProbeType::K0p1:
+      ec_sensor_.send_cmd("K,0.1");
+      break;
+    case ProbeType::K1:
+      ec_sensor_.send_cmd("K,1");
+      break;
+    case ProbeType::K10:
+      ec_sensor_.send_cmd("K,10");
+      break;
+    default:
+      Serial.println("Unknown probe type");
+      break;
   }
 }
