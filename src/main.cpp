@@ -239,6 +239,7 @@
 #include <IoAbstractionWire.h>
 #include <Wire.h>
 
+#include "ec_io.h"
 #include "ph_io.h"
 #include "simpleU8g2_menu.h"
 
@@ -252,9 +253,10 @@
 // U8G2_SSD1306_128X64_NONAME_F_SW_I2C gfx(U8G2_R0, 5, 4);
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C gfx(U8G2_R0, U8X8_PIN_NONE);
 
-const uint one_wire_pin = 21;
+const uint one_wire_pin = 18;
 OneWire one_wire(one_wire_pin);
 PhIo phIo(one_wire);
+EcIo ecIo(one_wire, EcIo::ProbeType::K0p1);
 
 //
 // In a tcMenu application, before calling setupMenu it's your responsibility to
@@ -264,8 +266,9 @@ PhIo phIo(one_wire);
 //
 void setup() {
   // If you use i2c devices, be sure to start wire.
-  Wire.begin(19, 18);
-  phIo.init();
+  Wire.begin(17, 5);
+  // phIo.init();
+  ecIo.init();
 
   Serial.begin(115200);
 
@@ -276,9 +279,10 @@ void setup() {
   setupMenu();
 
   taskManager.scheduleFixedRate(100, &phIo);
-  menuCalibrationTolerance.setFromFloatingPointValue(
-      phIo.getCalibrationTolerance());
-  menuStableReadingTotal.setCurrentValue(phIo.getStableReadingTotal());
+  taskManager.scheduleFixedRate(100, &ecIo);
+  // menuCalibrationTolerance.setFromFloatingPointValue(
+  //     phIo.getCalibrationTolerance());
+  // menuStableReadingTotal.setCurrentValue(phIo.getStableReadingTotal());
 }
 
 //
@@ -289,45 +293,159 @@ void setup() {
 //
 void loop() { taskManager.runLoop(); }
 
-void displayMeasuring(unsigned int encoderValue, RenderPressMode clicked);
-void CALLBACK_FUNCTION onStartMeasuring(int id) {
-  phIo.enable();
-  renderer.takeOverDisplay(displayMeasuring);
+// void displayMeasuring(unsigned int encoderValue, RenderPressMode clicked);
+// void CALLBACK_FUNCTION onStartMeasuring(int id) {
+//   phIo.enable();
+//   renderer.takeOverDisplay(displayMeasuring);
+// }
+
+// void CALLBACK_FUNCTION onStartCalibrate7Ph(int id) {
+//   phIo.calibrate(PhIo::CalibrationState::MID_POINT);
+//   renderer.takeOverDisplay(displayMeasuring);
+// }
+
+// void CALLBACK_FUNCTION onStartCalibrate4Ph(int id) {
+//   phIo.calibrate(PhIo::CalibrationState::LOW_POINT);
+//   renderer.takeOverDisplay(displayMeasuring);
+// }
+//
+// void drawPhIoStatus(PhIo::Status ph_io_status);
+// void drawCalibrateStatus(PhIo::Status ph_io_status);
+// void displayMeasuring(unsigned int encoderValue, RenderPressMode clicked) {
+//   PhIo::Status ph_io_status = phIo.getStatus();
+//   if (clicked) {
+//     phIo.disable();
+//     renderer.giveBackDisplay();
+//   } else {
+//     gfx.clearBuffer();
+//     drawPhIoStatus(ph_io_status);
+//     if (std::get<2>(ph_io_status) != PhIo::CalibrationState::NOT_CALIBRATING)
+//     {
+//       drawCalibrateStatus(ph_io_status);
+//     }
+//     gfx.sendBuffer();
+//   }
+// }
+
+// void drawPhIoStatus(PhIo::Status ph_io_status) {
+//   gfx.setCursor(0, 20);
+//   gfx.setFont(gfxConfig.titleFont);
+//   gfx.print("pH: ");
+//   gfx.setFont(u8g2_font_open_iconic_check_1x_t);
+//   switch (std::get<0>(ph_io_status)) {
+//     case Ezo_board::errors::SUCCESS:
+//       gfx.print("\x40");
+//       break;
+//     case Ezo_board::errors::NO_DATA:
+//       gfx.print("\x43");
+//       break;
+//     case Ezo_board::errors::FAIL:
+//     default:
+//       gfx.print("\x44");
+//       break;
+//   }
+//
+//   gfx.setFont(gfxConfig.titleFont);
+//   gfx.print(" Temp: ");
+//   gfx.setFont(u8g2_font_open_iconic_check_1x_t);
+//   switch (std::get<1>(ph_io_status)) {
+//     case PhIo::DallasError::SUCCESS:
+//       gfx.print("\x40");
+//       break;
+//     case PhIo::DallasError::NO_DATA:
+//       gfx.print("\x43");
+//       break;
+//     case PhIo::DallasError::DISCONNETED:
+//     default:
+//       gfx.print("\x44");
+//       break;
+//   }
+//
+//   gfx.setFont(gfxConfig.titleFont);
+//   gfx.printf(
+//       "  %4.1f\xb0"
+//       "C",
+//       phIo.getTemperatureC());
+//
+//   gfx.setCursor(0, 62);
+//   gfx.setFont(u8g2_font_courB18_tr);
+//   gfx.printf("%4.2f pH", phIo.getPh());
+// }
+
+// void drawCalibrateStatus(PhIo::Status ph_io_status) {
+//   gfx.setCursor(0, 34);
+//
+//   gfx.setFont(u8g2_font_open_iconic_check_1x_t);
+//   if (phIo.isCalibrationPointDone()) {
+//     phIo.completeCalibration();
+//     phIo.disable();
+//     renderer.giveBackDisplay();
+//     gfx.print("\x40");
+//   } else {
+//     gfx.print("\x44");
+//   }
+//   gfx.setFont(gfxConfig.titleFont);
+//   gfx.printf(" %.0f pH ", phIo.getCalibrationTarget());
+//
+//   gfx.printf("SD:%4.2f %d/%d", phIo.getCalibrationStdDev(),
+//              phIo.getStableReadingCount(), phIo.getStableReadingTotal());
+// }
+
+// void confirmCalibration(unsigned int encoderValue, RenderPressMode clicked);
+// void CALLBACK_FUNCTION onConfirmCalibration(int id) {
+//   phIo.calibrate(PhIo::CalibrationState::LOW_POINT);
+//   renderer.takeOverDisplay(confirmCalibration);
+// }
+
+// void CALLBACK_FUNCTION onUpdateCalibrationTolerance(int id) {
+//   MenuItem* menu_item = menuMgr.getCurrentEditor();
+//   if (menu_item) {
+//     AnalogMenuItem* analog_menu_item =
+//     static_cast<AnalogMenuItem*>(menu_item); float value =
+//     phIo.setCalibrationTolerance(analog_menu_item->getAsFloatingPointValue());
+//     analog_menu_item->setFromFloatingPointValue(value);
+//   }
+// }
+
+// void CALLBACK_FUNCTION onUpdateStableReadingTotal(int id) {
+//   MenuItem* menu_item = menuMgr.getCurrentEditor();
+//   if (menu_item) {
+//     AnalogMenuItem* analog_menu_item =
+//     static_cast<AnalogMenuItem*>(menu_item); uint8_t value =
+//         phIo.setStableReadingTotal(analog_menu_item->getCurrentValue());
+//     analog_menu_item->setCurrentValue(value);
+//   }
+// }
+
+void displayEcMeasuring(unsigned int encoderValue, RenderPressMode clicked);
+void CALLBACK_FUNCTION onStartEcMeasuring(int id) {
+  ecIo.enable();
+  renderer.takeOverDisplay(displayEcMeasuring);
 }
 
-void CALLBACK_FUNCTION onStartCalibrate7Ph(int id) {
-  phIo.calibrate(PhIo::CalibrationState::MID_POINT);
-  renderer.takeOverDisplay(displayMeasuring);
-}
-
-void CALLBACK_FUNCTION onStartCalibrate4Ph(int id) {
-  phIo.calibrate(PhIo::CalibrationState::LOW_POINT);
-  renderer.takeOverDisplay(displayMeasuring);
-}
-
-void drawPhIoStatus(PhIo::Status ph_io_status);
-void drawCalibrateStatus(PhIo::Status ph_io_status);
-void displayMeasuring(unsigned int encoderValue, RenderPressMode clicked) {
-  PhIo::Status ph_io_status = phIo.getStatus();
+void drawEcIoStatus(EcIo::Status ec_io_status);
+void drawEcCalibrateStatus(EcIo::Status ec_io_status);
+void displayEcMeasuring(unsigned int encoderValue, RenderPressMode clicked) {
+  EcIo::Status ec_io_status = ecIo.getStatus();
   if (clicked) {
-    phIo.disable();
+    ecIo.disable();
     renderer.giveBackDisplay();
   } else {
     gfx.clearBuffer();
-    drawPhIoStatus(ph_io_status);
-    if (std::get<2>(ph_io_status) != PhIo::CalibrationState::NOT_CALIBRATING) {
-      drawCalibrateStatus(ph_io_status);
+    drawEcIoStatus(ec_io_status);
+    if (std::get<2>(ec_io_status) != EcIo::CalibrationState::NOT_CALIBRATING) {
+      drawEcCalibrateStatus(ec_io_status);
     }
     gfx.sendBuffer();
   }
 }
 
-void drawPhIoStatus(PhIo::Status ph_io_status) {
+void drawEcIoStatus(EcIo::Status ec_io_status) {
   gfx.setCursor(0, 20);
   gfx.setFont(gfxConfig.titleFont);
-  gfx.print("pH: ");
+  gfx.print("EC:");
   gfx.setFont(u8g2_font_open_iconic_check_1x_t);
-  switch (std::get<0>(ph_io_status)) {
+  switch (std::get<0>(ec_io_status)) {
     case Ezo_board::errors::SUCCESS:
       gfx.print("\x40");
       break;
@@ -341,16 +459,16 @@ void drawPhIoStatus(PhIo::Status ph_io_status) {
   }
 
   gfx.setFont(gfxConfig.titleFont);
-  gfx.print(" Temp: ");
+  gfx.print(" Temp:");
   gfx.setFont(u8g2_font_open_iconic_check_1x_t);
-  switch (std::get<1>(ph_io_status)) {
-    case PhIo::DallasError::SUCCESS:
+  switch (std::get<1>(ec_io_status)) {
+    case EcIo::DallasError::SUCCESS:
       gfx.print("\x40");
       break;
-    case PhIo::DallasError::NO_DATA:
+    case EcIo::DallasError::NO_DATA:
       gfx.print("\x43");
       break;
-    case PhIo::DallasError::DISCONNETED:
+    case EcIo::DallasError::DISCONNETED:
     default:
       gfx.print("\x44");
       break;
@@ -360,53 +478,41 @@ void drawPhIoStatus(PhIo::Status ph_io_status) {
   gfx.printf(
       "  %4.1f\xb0"
       "C",
-      phIo.getTemperatureC());
+      ecIo.getTemperatureC());
 
   gfx.setCursor(0, 62);
   gfx.setFont(u8g2_font_courB18_tr);
-  gfx.printf("%4.2f pH", phIo.getPh());
+  gfx.printf("%.0f", ecIo.getEc());
+  gfx.setCursor(gfx.tx + 5, gfx.ty - 4);
+  gfx.setFont(gfxConfig.titleFont);
+  gfx.print("\xb5S/cm");
 }
 
-void drawCalibrateStatus(PhIo::Status ph_io_status) {
+void drawEcCalibrateStatus(EcIo::Status ec_io_status) {
   gfx.setCursor(0, 34);
 
   gfx.setFont(u8g2_font_open_iconic_check_1x_t);
-  if (phIo.isCalibrationPointDone()) {
-    phIo.completeCalibration();
-    phIo.disable();
-    renderer.giveBackDisplay();
-    gfx.print("\x40");
+  if (ecIo.isCalibrationPointDone()) {
+    // Upload calibration to sensor board
+    ecIo.completeCalibration();
+    // Check what the next calibration step is
+    auto calibrateion_point = ecIo.getNextCalibration();
+    if (std::get<0>(calibrateion_point) ==
+        EcIo::CalibrationState::NOT_CALIBRATING) {
+      // The calibration procedure is complete
+      ecIo.disable();
+      renderer.giveBackDisplay();
+      gfx.print("\x40");
+    } else {
+      // Go to the next calibration step
+      ecIo.calibrate(calibrateion_point);
+    }
   } else {
     gfx.print("\x44");
   }
   gfx.setFont(gfxConfig.titleFont);
-  gfx.printf(" %.0f pH ", phIo.getCalibrationTarget());
+  gfx.printf(" %.0f pH ", ecIo.getCalibrationTarget());
 
-  gfx.printf("SD:%4.2f %d/%d", phIo.getCalibrationStdDev(),
-             phIo.getStableReadingCount(), phIo.getStableReadingTotal());
-}
-
-void confirmCalibration(unsigned int encoderValue, RenderPressMode clicked);
-void CALLBACK_FUNCTION onConfirmCalibration(int id) {
-  phIo.calibrate(PhIo::CalibrationState::LOW_POINT);
-  renderer.takeOverDisplay(confirmCalibration);
-}
-
-void CALLBACK_FUNCTION onUpdateCalibrationTolerance(int id) {
-  MenuItem* menu_item = menuMgr.getCurrentEditor();
-  if (menu_item) {
-    AnalogMenuItem* analog_menu_item = static_cast<AnalogMenuItem*>(menu_item);
-    float value = phIo.setCalibrationTolerance(analog_menu_item->getAsFloatingPointValue());
-    analog_menu_item->setFromFloatingPointValue(value);
-  }
-}
-
-void CALLBACK_FUNCTION onUpdateStableReadingTotal(int id) {
-  MenuItem* menu_item = menuMgr.getCurrentEditor();
-  if (menu_item) {
-    AnalogMenuItem* analog_menu_item = static_cast<AnalogMenuItem*>(menu_item);
-    uint8_t value =
-        phIo.setStableReadingTotal(analog_menu_item->getCurrentValue());
-    analog_menu_item->setCurrentValue(value);
-  }
+  gfx.printf("SD:%4.2f %d/%d", ecIo.getCalibrationStdDev(),
+             ecIo.getStableReadingCount(), ecIo.getStableReadingTotal());
 }

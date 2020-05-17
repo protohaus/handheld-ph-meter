@@ -29,13 +29,15 @@ extern U8g2MenuRenderer renderer;
 
 // Global Menu Item exports
 
-void CALLBACK_FUNCTION onStartMeasuring(int id);
-void CALLBACK_FUNCTION onStartCalibrate4Ph(int id);
-void CALLBACK_FUNCTION onStartCalibrate7Ph(int id);
-void CALLBACK_FUNCTION onUpdateCalibrationTolerance(int id);
-void CALLBACK_FUNCTION onUpdateStableReadingTotal(int id);
+// void CALLBACK_FUNCTION onStartMeasuring(int id);
+// void CALLBACK_FUNCTION onStartCalibrate4Ph(int id);
+// void CALLBACK_FUNCTION onStartCalibrate7Ph(int id);
+// void CALLBACK_FUNCTION onUpdateCalibrationTolerance(int id);
+// void CALLBACK_FUNCTION onUpdateStableReadingTotal(int id);
 
-extern AnalogMenuItem menuCalibrationTolerance;
-extern AnalogMenuItem menuStableReadingTotal;
+// extern AnalogMenuItem menuCalibrationTolerance;
+// extern AnalogMenuItem menuStableReadingTotal;
+
+void CALLBACK_FUNCTION onStartEcMeasuring(int id);
 
 #endif // MENU_GENERATED_CODE_H

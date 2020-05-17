@@ -46,36 +46,39 @@ U8g2MenuRenderer renderer;
 // };
 // AnalogMenuItem menuToasterPower(&minfoToasterPower, 0, &menuType);
 
-const AnalogMenuInfo PROGMEM minfoStableReadingTotal = {
-    "Messanzahl", 5, 0xFFFF, 30, onUpdateStableReadingTotal, 0, 0, ""};
-AnalogMenuItem menuStableReadingTotal(&minfoStableReadingTotal, 0, NULL);
 
-const AnalogMenuInfo PROGMEM minfoCalibrationTolerance = {
-    "SD Toleranz", 5, 0xFFFF, 100, onUpdateCalibrationTolerance, 0, 100, ""};
-AnalogMenuItem menuCalibrationTolerance(&minfoCalibrationTolerance, 0, &menuStableReadingTotal);
+/// PH Sensor
 
-const AnyMenuInfo PROGMEM minfoCalibrate7Ph = {
-    "7 pH Referenz", 4, 0xFFFF, 0, onStartCalibrate7Ph,
+// const AnalogMenuInfo PROGMEM minfoStableReadingTotal = {
+//     "Messanzahl", 5, 0xFFFF, 30, onUpdateStableReadingTotal, 0, 0, ""};
+// AnalogMenuItem menuStableReadingTotal(&minfoStableReadingTotal, 0, NULL);
+
+// const AnalogMenuInfo PROGMEM minfoCalibrationTolerance = {
+//     "SD Toleranz", 5, 0xFFFF, 100, onUpdateCalibrationTolerance, 0, 100, ""};
+// AnalogMenuItem menuCalibrationTolerance(&minfoCalibrationTolerance, 0, &menuStableReadingTotal);
+
+// const AnyMenuInfo PROGMEM minfoCalibrate7Ph = {
+//     "7 pH Referenz", 4, 0xFFFF, 0, onStartCalibrate7Ph,
+// };
+// ActionMenuItem menuCalibrate7Ph(&minfoCalibrate7Ph, &menuCalibrationTolerance);
+
+// const AnyMenuInfo PROGMEM minfoCalibrate4Ph = {
+//     "4 pH Referenz", 3, 0xFFFF, 0, onStartCalibrate4Ph,
+// };
+// ActionMenuItem menuCalibrate4Ph(&minfoCalibrate4Ph, &menuCalibrate7Ph);
+
+// SubMenuInfo PROGMEM minfoCalibrate = {
+//     "Kalibrieren", 2, 0xFFFF, 0, NO_CALLBACK,
+// };
+// RENDERING_CALLBACK_NAME_INVOKE(fnCalibrateRtCall, backSubItemRenderFn,
+//                                "Kalibrieren", -1, NO_CALLBACK)
+// BackMenuItem menuBackCalibrate(fnCalibrateRtCall, &menuCalibrate4Ph);
+// SubMenuItem menuCalibrate(&minfoCalibrate, &menuBackCalibrate, NULL);
+
+const AnyMenuInfo PROGMEM minfoStartEcMeasuring = {
+    "Messen", 1, 0xFFFF, 0, onStartEcMeasuring,
 };
-ActionMenuItem menuCalibrate7Ph(&minfoCalibrate7Ph, &menuCalibrationTolerance);
-
-const AnyMenuInfo PROGMEM minfoCalibrate4Ph = {
-    "4 pH Referenz", 3, 0xFFFF, 0, onStartCalibrate4Ph,
-};
-ActionMenuItem menuCalibrate4Ph(&minfoCalibrate4Ph, &menuCalibrate7Ph);
-
-SubMenuInfo PROGMEM minfoCalibrate = {
-    "Kalibrieren", 2, 0xFFFF, 0, NO_CALLBACK,
-};
-RENDERING_CALLBACK_NAME_INVOKE(fnCalibrateRtCall, backSubItemRenderFn,
-                               "Kalibrieren", -1, NO_CALLBACK)
-BackMenuItem menuBackCalibrate(fnCalibrateRtCall, &menuCalibrate4Ph);
-SubMenuItem menuCalibrate(&minfoCalibrate, &menuBackCalibrate, NULL);
-
-const AnyMenuInfo PROGMEM minfoStartMeasuring = {
-    "Messen", 1, 0xFFFF, 0, onStartMeasuring,
-};
-ActionMenuItem menuStartMeasuring(&minfoStartMeasuring, &menuCalibrate);
+ActionMenuItem menuStartEcMeasuring(&minfoStartEcMeasuring, NULL);
 
 // Set up code
 
@@ -83,6 +86,6 @@ void setupMenu() {
   prepareBasicU8x8Config(gfxConfig);
   renderer.setGraphicsDevice(&gfx, &gfxConfig);
   switches.initialise(ioUsingArduino(), true);
-  menuMgr.initForUpDownOk(&renderer, &menuStartMeasuring, 14, 13, 27);
+  menuMgr.initForUpDownOk(&renderer, &menuStartEcMeasuring, 14, 13, 27);
   menuMgr.setBackButton(12);
 }

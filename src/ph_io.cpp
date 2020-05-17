@@ -189,9 +189,6 @@ uint8_t PhIo::getStableReadingCount() { return stable_reading_count_; }
 uint8_t PhIo::getStableReadingTotal() { return stable_reading_total_; }
 
 bool PhIo::isCalibrationPointDone() {
-  // Returns true if the buffer is more than half full
-  // and the standard deviation is within the calibration tolerance
-  // and within a plausible range for the offset
   if (stable_reading_count_ >= stable_reading_total_) {
     return true;
   } else {
