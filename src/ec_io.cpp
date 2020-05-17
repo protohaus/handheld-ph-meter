@@ -119,6 +119,15 @@ EcIo::CalibrationPoint EcIo::getNextCalibration() {
 
 float EcIo::getCalibrationStdDev() { return calibration_std_dev_; }
 
+float EcIo::getCalibrationTolerance() { return calibration_tolerance_; }
+
+float EcIo::setCalibrationTolerance(float tolerance_std_dev) {
+  if (tolerance_std_dev > 0) {
+    calibration_tolerance_ = tolerance_std_dev;
+  }
+  return calibration_tolerance_;
+}
+
 uint8_t EcIo::getStableReadingCount() { return stable_reading_count_; }
 
 uint8_t EcIo::getStableReadingTotal() { return stable_reading_total_; }
@@ -143,10 +152,15 @@ float EcIo::getCalibrationTarget(bool temperature_compensate) {
         return NAN;
     }
   } else {
-    // target = (high_µS - low_µS) * (current_°C - low_°C) / (high_°C - low_°C)
-    // + low_µS target = (high_µS - low_µS) * scalar + low_µS target = (1020 -
-    // 896)
-    // * (7 - 5) / (10 - 5) + 896
+    // target = (high_µS - low_µS)
+    //          * (current_°C - low_°C) / (high_°C - low_°C)
+    //          + low_µS
+    // target = (high_µS - low_µS)
+    //          * scalar
+    //          + low_µS
+    // target = (1020 - 896)
+    //          * (7 - 5) / (10 - 5)
+    //          + 896
     const float& temperature_c = dallas_temperature_c_;
     uint8_t low_i = 0;
 
@@ -234,7 +248,7 @@ bool EcIo::completeCalibration(bool override) {
             getCalibrationTarget(dallas_temperature_c_));
 
     Serial.print(calibration_command.data());
-    ec_sensor_.send_cmd(calibration_command.data());
+    // ec_sensor_.send_cmd(calibration_command.data());
     disable();
     return true;
   } else {
@@ -311,9 +325,10 @@ void EcIo::performCalibration() {
 }
 
 void EcIo::updateStableReadingCount() {
+  const float target_c = getCalibrationTarget(getTemperatureC());
   if (calibration_std_dev_ <= calibration_tolerance_ &&
-      abs(getCalibrationTarget(getTemperatureC()) - calibration_average_) <
-          calibration_max_offset_) {
+      abs(target_c - calibration_average_) / target_c <
+          calibration_max_offset_percent_) {
     if (stable_reading_count_ < stable_reading_total_) {
       stable_reading_count_++;
     }

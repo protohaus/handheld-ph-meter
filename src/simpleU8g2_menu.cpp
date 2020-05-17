@@ -46,39 +46,46 @@ U8g2MenuRenderer renderer;
 // };
 // AnalogMenuItem menuToasterPower(&minfoToasterPower, 0, &menuType);
 
-
 /// PH Sensor
 
-// const AnalogMenuInfo PROGMEM minfoStableReadingTotal = {
-//     "Messanzahl", 5, 0xFFFF, 30, onUpdateStableReadingTotal, 0, 0, ""};
-// AnalogMenuItem menuStableReadingTotal(&minfoStableReadingTotal, 0, NULL);
+const AnalogMenuInfo PROGMEM minfoEcStableReadingTotal = {
+    "Messanzahl", 7, 0xFFFF, 30, onUpdateEcStableReadingTotal, 0, 0, ""};
+AnalogMenuItem menuEcStableReadingTotal(&minfoEcStableReadingTotal, 0, NULL);
 
-// const AnalogMenuInfo PROGMEM minfoCalibrationTolerance = {
-//     "SD Toleranz", 5, 0xFFFF, 100, onUpdateCalibrationTolerance, 0, 100, ""};
-// AnalogMenuItem menuCalibrationTolerance(&minfoCalibrationTolerance, 0, &menuStableReadingTotal);
+const AnalogMenuInfo PROGMEM minfoEcCalibrationTolerance = {
+    "SD Toleranz", 6, 0xFFFF, 40, onUpdateEcCalibrationTolerance, 0, 2, ""};
+AnalogMenuItem menuEcCalibrationTolerance(&minfoEcCalibrationTolerance, 0,
+                                          &menuEcStableReadingTotal);
 
-// const AnyMenuInfo PROGMEM minfoCalibrate7Ph = {
-//     "7 pH Referenz", 4, 0xFFFF, 0, onStartCalibrate7Ph,
-// };
-// ActionMenuItem menuCalibrate7Ph(&minfoCalibrate7Ph, &menuCalibrationTolerance);
+const AnyMenuInfo PROGMEM minfoEcCalibrate1413 = {
+    "1413 \xb5S/cm", 5, 0xFFFF, 0, onStartEcCalibrate1413,
+};
+ActionMenuItem menuEcCalibrate1413(&minfoEcCalibrate1413,
+                                   &menuEcCalibrationTolerance);
 
-// const AnyMenuInfo PROGMEM minfoCalibrate4Ph = {
-//     "4 pH Referenz", 3, 0xFFFF, 0, onStartCalibrate4Ph,
-// };
-// ActionMenuItem menuCalibrate4Ph(&minfoCalibrate4Ph, &menuCalibrate7Ph);
+const AnyMenuInfo PROGMEM minfoEcCalibrate84 = {
+    "84 \xb5S/cm", 4, 0xFFFF, 0, onStartEcCalibrate84,
+};
+ActionMenuItem menuEcCalibrate84(&minfoEcCalibrate84, &menuEcCalibrate1413);
 
-// SubMenuInfo PROGMEM minfoCalibrate = {
-//     "Kalibrieren", 2, 0xFFFF, 0, NO_CALLBACK,
-// };
-// RENDERING_CALLBACK_NAME_INVOKE(fnCalibrateRtCall, backSubItemRenderFn,
-//                                "Kalibrieren", -1, NO_CALLBACK)
-// BackMenuItem menuBackCalibrate(fnCalibrateRtCall, &menuCalibrate4Ph);
-// SubMenuItem menuCalibrate(&minfoCalibrate, &menuBackCalibrate, NULL);
+const AnyMenuInfo PROGMEM minfoEcCalibrate84and1413 = {
+    "84 und 1413 \xb5S/cm", 3, 0xFFFF, 0, onStartEcCalibrate84and1413,
+};
+ActionMenuItem menuEcCalibrate84and1413(&minfoEcCalibrate84and1413,
+                                        &menuEcCalibrate84);
+
+SubMenuInfo PROGMEM minfoCalibrate = {
+    "Kalibrieren", 2, 0xFFFF, 0, NO_CALLBACK,
+};
+RENDERING_CALLBACK_NAME_INVOKE(fnCalibrateRtCall, backSubItemRenderFn,
+                               "Kalibrieren", -1, NO_CALLBACK)
+BackMenuItem menuBackEcCalibrate(fnCalibrateRtCall, &menuEcCalibrate84and1413);
+SubMenuItem menuEcCalibrate(&minfoCalibrate, &menuBackEcCalibrate, NULL);
 
 const AnyMenuInfo PROGMEM minfoStartEcMeasuring = {
     "Messen", 1, 0xFFFF, 0, onStartEcMeasuring,
 };
-ActionMenuItem menuStartEcMeasuring(&minfoStartEcMeasuring, NULL);
+ActionMenuItem menuStartEcMeasuring(&minfoStartEcMeasuring, &menuEcCalibrate);
 
 // Set up code
 
@@ -86,6 +93,6 @@ void setupMenu() {
   prepareBasicU8x8Config(gfxConfig);
   renderer.setGraphicsDevice(&gfx, &gfxConfig);
   switches.initialise(ioUsingArduino(), true);
-  menuMgr.initForUpDownOk(&renderer, &menuStartEcMeasuring, 14, 13, 27);
-  menuMgr.setBackButton(12);
+  menuMgr.initForUpDownOk(&renderer, &menuStartEcMeasuring, 14, 12, 27);
+  menuMgr.setBackButton(13);
 }

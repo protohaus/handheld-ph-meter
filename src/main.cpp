@@ -283,6 +283,9 @@ void setup() {
   // menuCalibrationTolerance.setFromFloatingPointValue(
   //     phIo.getCalibrationTolerance());
   // menuStableReadingTotal.setCurrentValue(phIo.getStableReadingTotal());
+  menuEcCalibrationTolerance.setFromFloatingPointValue(
+      ecIo.getCalibrationTolerance());
+  menuEcStableReadingTotal.setCurrentValue(ecIo.getStableReadingTotal());
 }
 
 //
@@ -511,8 +514,46 @@ void drawEcCalibrateStatus(EcIo::Status ec_io_status) {
     gfx.print("\x44");
   }
   gfx.setFont(gfxConfig.titleFont);
-  gfx.printf(" %.0f pH ", ecIo.getCalibrationTarget());
+  gfx.printf(" %.0f ", ecIo.getCalibrationTarget(false));
 
   gfx.printf("SD:%4.2f %d/%d", ecIo.getCalibrationStdDev(),
              ecIo.getStableReadingCount(), ecIo.getStableReadingTotal());
+}
+
+void CALLBACK_FUNCTION onStartEcCalibrate84and1413(int id) {
+  ecIo.calibrate(EcIo::CalibrationState::TWO_POINT_LOW,
+                 EcIo::CalibrationReference::US_84);
+  renderer.takeOverDisplay(displayEcMeasuring);
+}
+
+void CALLBACK_FUNCTION onStartEcCalibrate84(int id) {
+  ecIo.calibrate(EcIo::CalibrationState::SINGLE_POINT,
+                 EcIo::CalibrationReference::US_84);
+  renderer.takeOverDisplay(displayEcMeasuring);
+}
+
+void CALLBACK_FUNCTION onStartEcCalibrate1413(int id) {
+  ecIo.calibrate(EcIo::CalibrationState::SINGLE_POINT,
+                 EcIo::CalibrationReference::US_1413);
+  renderer.takeOverDisplay(displayEcMeasuring);
+}
+
+void CALLBACK_FUNCTION onUpdateEcCalibrationTolerance(int id) {
+  MenuItem* menu_item = menuMgr.getCurrentEditor();
+  if (menu_item) {
+    AnalogMenuItem* analog_menu_item = static_cast<AnalogMenuItem*>(menu_item);
+    float value = ecIo.setCalibrationTolerance(
+        analog_menu_item->getAsFloatingPointValue());
+    analog_menu_item->setFromFloatingPointValue(value);
+  }
+}
+
+void CALLBACK_FUNCTION onUpdateEcStableReadingTotal(int id) {
+  MenuItem* menu_item = menuMgr.getCurrentEditor();
+  if (menu_item) {
+    AnalogMenuItem* analog_menu_item = static_cast<AnalogMenuItem*>(menu_item);
+    uint8_t value =
+        ecIo.setStableReadingTotal(analog_menu_item->getCurrentValue());
+    analog_menu_item->setCurrentValue(value);
+  }
 }

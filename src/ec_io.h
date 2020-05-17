@@ -43,6 +43,8 @@ class EcIo : public Executable {
   bool isCalibrationPointDone();
   CalibrationPoint getNextCalibration();
   float getCalibrationStdDev();
+  float getCalibrationTolerance();
+  float setCalibrationTolerance(float tolerance_std_dev);
   uint8_t getStableReadingCount();
   uint8_t getStableReadingTotal();
   uint8_t setStableReadingTotal(uint8_t stable_reading_total);
@@ -91,8 +93,8 @@ class EcIo : public Executable {
   CalibrationReference calibration_reference_;
   CalibrationBuffer calibration_measurements_;
   uint8_t calibration_position_ = 0;
-  float calibration_tolerance_ = 0.02;
-  float calibration_max_offset_ = 1.5;
+  float calibration_tolerance_ = 4;
+  float calibration_max_offset_percent_ = 0.4;
   float calibration_average_ = NAN;
   float calibration_std_dev_ = NAN;
   bool calibration_is_full_ = false;

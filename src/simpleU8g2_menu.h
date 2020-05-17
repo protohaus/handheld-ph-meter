@@ -39,5 +39,13 @@ extern U8g2MenuRenderer renderer;
 // extern AnalogMenuItem menuStableReadingTotal;
 
 void CALLBACK_FUNCTION onStartEcMeasuring(int id);
+void CALLBACK_FUNCTION onStartEcCalibrate84and1413(int id);
+void CALLBACK_FUNCTION onStartEcCalibrate84(int id);
+void CALLBACK_FUNCTION onStartEcCalibrate1413(int id);
+void CALLBACK_FUNCTION onUpdateEcCalibrationTolerance(int id);
+void CALLBACK_FUNCTION onUpdateEcStableReadingTotal(int id);
+
+extern AnalogMenuItem menuEcCalibrationTolerance;
+extern AnalogMenuItem menuEcStableReadingTotal;
 
 #endif // MENU_GENERATED_CODE_H
