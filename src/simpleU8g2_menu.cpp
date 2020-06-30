@@ -93,6 +93,6 @@ void setupMenu() {
   prepareBasicU8x8Config(gfxConfig);
   renderer.setGraphicsDevice(&gfx, &gfxConfig);
   switches.initialise(ioUsingArduino(), true);
-  menuMgr.initForUpDownOk(&renderer, &menuStartEcMeasuring, 14, 12, 27);
-  menuMgr.setBackButton(13);
+  menuMgr.initForUpDownOk(&renderer, &menuStartEcMeasuring, 14, 12, 13);
+//   menuMgr.setBackButton(13);
 }
