@@ -2,12 +2,11 @@
 
 #include <DallasTemperature.h>
 #include <Ezo_i2c.h>
-#include <TaskManager.h>
 #include <Wire.h>
 
 #include <tuple>
 
-class EcIo : public Executable {
+class EcIo {
  public:
   /// Probe types with K0.1, K1 and K10
   enum class ProbeType { K0p1, K1, K10 };

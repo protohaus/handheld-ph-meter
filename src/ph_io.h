@@ -3,11 +3,10 @@
 #include <DallasTemperature.h>
 #include <Ezo_i2c.h>
 #include <Wire.h>
-#include <TaskManager.h>
 
 #include <tuple>
 
-class PhIo : public Executable {
+class PhIo {
  public:
   enum class DallasError { SUCCESS, NO_DATA, DISCONNETED };
   enum class CalibrationState {
