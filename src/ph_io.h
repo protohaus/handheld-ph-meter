@@ -1,10 +1,13 @@
 #pragma once
 
+#include <tuple>
+#include <functional>
+
 #include <DallasTemperature.h>
 #include <Ezo_i2c.h>
 #include <Wire.h>
 
-#include <tuple>
+namespace sdg {
 
 class PhIo {
  public:
@@ -18,7 +21,7 @@ class PhIo {
   typedef std::tuple<Ezo_board::errors, PhIo::DallasError, PhIo::CalibrationState> Status;
   typedef std::array<float, 30> CalibrationBuffer;
 
-  PhIo(OneWire& one_wire);
+  PhIo(OneWire& one_wire, std::function<void()> updated);
   void init();
   void enable();
   bool isEnabled();
@@ -84,4 +87,8 @@ class PhIo {
   bool calibration_is_full_ = false;
   uint8_t stable_reading_count_ = 0;
   uint8_t stable_reading_total_ = 20;
+
+  std::function<void()> updated_;
 };
+
+}

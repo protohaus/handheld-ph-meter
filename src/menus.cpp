@@ -2,28 +2,30 @@
 
 namespace sdg {
 
-Menus::Menus(PhIo* phIo, EcIo* ecIo) : phIo_(phIo), ecIo_(ecIo) {}
+Menus::Menus(Ios& ios) : ios_(ios) {}
 
 result Menus::measurement(menuOut& o, idleEvent e) {
   int v_offset = 0;
 
   result ph_r = result::proceed;
-  if (phIo_) {
+  if (ios_.phs.size() > 0) {
     ph_r = printPh(o, e, v_offset);
   }
 
   result ec_r = result::proceed;
-  if (ecIo_) {
+  if (ios_.ecs.size() > 0) {
     ec_r = printEc(o, e, v_offset);
   }
 
-  if (!phIo_ && !ecIo_) {
-    o.setCursor(0, 0);
-    o.print("No EC or pH sensor");
+  if (!ios_.ecs.size() && !ios_.ecs.size()) {
+    o.setCursor(0, 1);
+    o.print("Kein EC oder pH");
+    o.setCursor(0, 2);
+    o.print("Sensor");
+  } else {
+    printSpinner(o);
   }
 
-  printSpinner(o);
-  
   if (ph_r == result::quit || ec_r == result::quit) {
     return result::quit;
   } else {
@@ -31,11 +33,41 @@ result Menus::measurement(menuOut& o, idleEvent e) {
   }
 }
 
-result Menus::printPh(menuOut& o, idleEvent e, int& v_offset) {
-  if (phIo_) {
+result Menus::waterLevel(menuOut& o, idleEvent e) {
+  auto water_level = ios_.analogs.find("Water Level");
+  if (water_level != ios_.analogs.end()) {
+    int v_offset = 1;
+
     switch (e) {
       case Menu::idleStart:
-        phIo_->enable();
+        water_level->second.enable();
+        break;
+      case Menu::idling:
+        o.setCursor(0, 0);
+        o.printf("Wasserstand: %.0f%%", water_level->second.getPercent());
+        for (auto& pump : ios_.pumps) {
+          o.setCursor(0, v_offset);
+          o.printf("%s: %d", pump.first.c_str(), pump.second.getState());
+          v_offset++;
+        }
+        break;
+      case Menu::idleEnd:
+        water_level->second.disable();
+        break;
+      default:
+        break;
+    }
+  }
+
+  return result::proceed;
+}
+
+result Menus::printPh(menuOut& o, idleEvent e, int& v_offset) {
+  auto phIo = ios_.phs.begin();
+  if (phIo != ios_.phs.end()) {
+    switch (e) {
+      case Menu::idleStart:
+        phIo->second.enable();
         break;
       case Menu::idling:
         o.setCursor(0, 0 + v_offset);
@@ -44,7 +76,7 @@ result Menus::printPh(menuOut& o, idleEvent e, int& v_offset) {
         printPhValues(o);
         break;
       case Menu::idleEnd:
-        phIo_->disable();
+        phIo->second.disable();
         break;
       default:
         break;
@@ -57,8 +89,9 @@ result Menus::printPh(menuOut& o, idleEvent e, int& v_offset) {
 }
 
 void Menus::printPhStatus(Menu::menuOut& o) {
-  if (phIo_) {
-    auto ph_status = phIo_->getStatus();
+  auto phIo = ios_.phs.begin();
+  if (phIo != ios_.phs.end()) {
+    auto ph_status = phIo->second.getStatus();
     switch (std::get<0>(ph_status)) {
       case Ezo_board::SUCCESS:
         o.print("pH: Aktiv");
@@ -82,10 +115,11 @@ void Menus::printPhStatus(Menu::menuOut& o) {
 }
 
 void Menus::printPhValues(Menu::menuOut& o) {
-  if (phIo_) {
-    o.print(phIo_->getPh());
+  auto phIo = ios_.phs.begin();
+  if (phIo != ios_.phs.end()) {
+    o.print(phIo->second.getPh());
     o.print(" pH  ");
-    o.print(phIo_->getTemperatureC(), 0);
+    o.print(phIo->second.getTemperatureC(), 0);
     o.print(" ");
     o.print(degree_char_);
     o.print("C");
@@ -95,10 +129,11 @@ void Menus::printPhValues(Menu::menuOut& o) {
 }
 
 result Menus::printEc(menuOut& o, idleEvent e, int& v_offset) {
-  if (ecIo_) {
+  auto ecIo = ios_.ecs.begin();
+  if (ecIo != ios_.ecs.end()) {
     switch (e) {
       case Menu::idleStart:
-        ecIo_->enable();
+        ecIo->second.enable();
         break;
       case Menu::idling:
         o.setCursor(0, 0 + v_offset);
@@ -107,7 +142,7 @@ result Menus::printEc(menuOut& o, idleEvent e, int& v_offset) {
         printEcValues(o);
         break;
       case Menu::idleEnd:
-        ecIo_->disable();
+        ecIo->second.disable();
         break;
       default:
         break;
@@ -120,8 +155,9 @@ result Menus::printEc(menuOut& o, idleEvent e, int& v_offset) {
 }
 
 void Menus::printEcStatus(Menu::menuOut& o) {
-  if (ecIo_) {
-    auto ec_status = ecIo_->getStatus();
+  auto ecIo = ios_.ecs.begin();
+  if (ecIo != ios_.ecs.end()) {
+    auto ec_status = ecIo->second.getStatus();
     switch (std::get<0>(ec_status)) {
       case Ezo_board::SUCCESS:
         o.print("EC: Aktiv");
@@ -145,25 +181,28 @@ void Menus::printEcStatus(Menu::menuOut& o) {
 }
 
 void Menus::printEcValues(Menu::menuOut& o) {
-  o.print(ecIo_->getEc(), 0);
-  o.print(" uS/cm  ");
-  o.print(ecIo_->getTemperatureC(), 0);
-  o.print(" ");
-  o.print(degree_char_);
-  o.print("C");
+  auto ecIo = ios_.ecs.begin();
+  if (ecIo != ios_.ecs.end()) {
+    o.print(ecIo->second.getEc(), 0);
+    o.print(" uS/cm  ");
+    o.print(ecIo->second.getTemperatureC(), 0);
+    o.print(" ");
+    o.print(degree_char_);
+    o.print("C");
+  }
 }
 
 void Menus::printSpinner(Menu::menuOut& o) {
   o.setCursor(16, 0);
-  if(spinner_state == 0) {
+  if (spinner_state == 0) {
     o.print(".");
   }
-  if(spinner_state == 1) {
+  if (spinner_state == 1) {
     o.print(":");
   }
   if (spinner_last_update_ms + spinner_blink_duration_ms < millis()) {
     spinner_last_update_ms = millis();
-    if(spinner_state == 0) {
+    if (spinner_state == 0) {
       spinner_state = 1;
     } else {
       spinner_state = 0;

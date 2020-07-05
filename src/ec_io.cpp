@@ -1,5 +1,7 @@
 #include "ec_io.h"
 
+namespace sdg {
+
 const std::array<uint8_t, 10> EcIo::ref_temperature_c_{5,  10, 15, 20, 25,
                                                        30, 35, 40, 45, 50};
 
@@ -10,10 +12,11 @@ const std::array<uint32_t, 10> EcIo::us_1413_ref_{896,  1020, 1147, 1278, 1413,
                                                   1548, 1711, 1860, 2009, 2158};
 
 EcIo::EcIo(OneWire& one_wire, EcIo::ProbeType probe_type,
-           uint8_t ec_sensor_i2c_address)
+           std::function<void()> updated, uint8_t ec_sensor_i2c_address)
     : ec_sensor_(Ezo_board(ec_sensor_i2c_address, "EC")),
       probe_type_(probe_type),
-      dallas_sensor_(&one_wire) {}
+      dallas_sensor_(&one_wire),
+      updated_(updated) {}
 
 void EcIo::init() {
   dallas_sensor_.begin();
@@ -217,6 +220,7 @@ void EcIo::performTemperatureReading() {
         dallas_status_ = DallasError::SUCCESS;
       }
       dallas_request_phase_ = true;
+      updated_();
     }
   }
 }
@@ -290,6 +294,7 @@ void EcIo::performEcReading() {
       }
       // switch back to ask for a new reading
       reading_request_phase_ = true;
+      updated_();
     }
   }
 }
@@ -362,3 +367,5 @@ void EcIo::sendProbeType() {
       break;
   }
 }
+
+}  // namespace sdg

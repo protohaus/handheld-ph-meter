@@ -4,7 +4,10 @@
 #include <Ezo_i2c.h>
 #include <Wire.h>
 
+#include <functional>
 #include <tuple>
+
+namespace sdg {
 
 class EcIo {
  public:
@@ -24,7 +27,7 @@ class EcIo {
   typedef std::array<float, 30> CalibrationBuffer;
 
   EcIo(OneWire& one_wire, ProbeType probe_type,
-       uint8_t ec_sensor_i2c_address = 0x64);
+       std::function<void()> updated, uint8_t ec_sensor_i2c_address = 0x64);
   void init();
   void enable();
   bool isEnabled();
@@ -103,4 +106,7 @@ class EcIo {
   static const std::array<uint8_t, 10> ref_temperature_c_;
   static const std::array<uint32_t, 10> us_84_ref_;
   static const std::array<uint32_t, 10> us_1413_ref_;
+
+  std::function<void()> updated_;
 };
+}  // namespace sdg

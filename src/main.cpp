@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <items.h>
+#include <menu.h>
 #include <menuIO/chainStream.h>
 #include <menuIO/keyIn.h>
 #include <menuIO/serialIn.h>
@@ -9,15 +9,20 @@
 #include <menuIo.h>
 #include <nav.h>
 
-#include "ec_io.h"
+#include "ios.h"
 #include "menus.h"
-#include "ph_io.h"
 
 OneWire one_wire(23);
 
-PhIo phIo(one_wire);
-EcIo ecIo(one_wire, EcIo::ProbeType::K0p1);
-sdg::Menus menus(&phIo, &ecIo);
+sdg::Ios ios{
+    .ecs = {{"EC", sdg::EcIo(one_wire, sdg::EcIo::ProbeType::K0p1,
+                             std::bind(&sdg::Ios::updated, &ios))}},
+    .phs = {{"pH", sdg::PhIo(one_wire, std::bind(&sdg::Ios::updated, &ios))}},
+    .pumps = {{"Pump A", sdg::PumpIo(13)}, {"Pump B", sdg::PumpIo(14)}},
+    .analogs = {{"Water Level",
+                 sdg::AnalogIo(35, std::bind(&sdg::Ios::updated, &ios))}}};
+
+sdg::Menus menus(ios);
 
 // The pin numbers don't seem to correspond to their actions...
 #define SELECT_PIN 32
@@ -49,16 +54,33 @@ const colorDef<uint8_t> colors[6] MEMMODE = {
     {{1, 1}, {1, 0, 0}},  // titleColor
 };
 
-result calibrate(menuOut& o, idleEvent e) { return proceed; }
-
 result measurement(menuOut& o, idleEvent e) { return menus.measurement(o, e); }
-
 result doMeasurement(eventMask e, prompt& item);
+
+result waterLevel(menuOut& o, idleEvent e) { return menus.waterLevel(o, e); }
+result doWaterLevel(eventMask e, prompt& item);
+
+result calibrate(menuOut& o, idleEvent e) { return proceed; }
 result doCalibration(eventMask e, prompt& item);
+
+result doUpdatePumpA();
+result doUpdatePumpB();
+
+int pump_a_state = LOW;
+TOGGLE(pump_a_state, set_pump_a, "Pump A: ", doNothing, noEvent, noStyle,
+       VALUE("On", HIGH, doUpdatePumpA, noEvent),
+       VALUE("Off", LOW, doUpdatePumpA, noEvent));
+
+int pump_b_state = LOW;
+TOGGLE(pump_b_state, set_pump_b, "Pump B: ", doNothing, noEvent, noStyle,
+       VALUE("On", HIGH, doUpdatePumpB, noEvent),
+       VALUE("Off", LOW, doUpdatePumpB, noEvent));
 
 MENU(mainMenu, "pH Meter", doNothing, noEvent, wrapStyle,
      OP("Messung starten", doMeasurement, enterEvent),
-     OP("Kalibrieren", doCalibration, enterEvent), EXIT("<Exit"));
+     OP("Wasserstand", doWaterLevel, enterEvent), SUBMENU(set_pump_a),
+     SUBMENU(set_pump_b), OP("Kalibrieren", doCalibration, enterEvent),
+     EXIT("<Exit"));
 
 #define MAX_DEPTH 2
 
@@ -86,9 +108,31 @@ result doMeasurement(eventMask e, prompt& item) {
   return proceed;
 }
 
+result doWaterLevel(eventMask e, prompt& item) {
+  nav.idleOn(waterLevel);
+  return proceed;
+}
+
 result doCalibration(eventMask e, prompt& item) {
   nav.idleOn(calibrate);
   return proceed;
+}
+
+result doUpdatePumpA() {
+  auto pump = ios.pumps.find("Pump A");
+  if (pump != ios.pumps.end()) {
+    pump->second.setState(pump_a_state);
+  }
+
+  return result::proceed;
+}
+
+result doUpdatePumpB() {
+  auto pump = ios.pumps.find("Pump B");
+  if (pump != ios.pumps.end()) {
+    pump->second.setState(pump_b_state);
+  }
+  return result::proceed;
 }
 
 // when menu is suspended
@@ -99,7 +143,7 @@ Menu::result idle(Menu::menuOut& o, Menu::idleEvent e) {
       o.println("suspending menu!");
       break;
     case Menu::idling:
-      o.println("suspended...");
+      o.println("");
       break;
     case Menu::idleEnd:
       o.println("resuming menu.");
@@ -117,7 +161,7 @@ void updateDisplay() {
 }
 
 bool request_update = false;
-const unsigned long update_duration = 400;
+const unsigned long update_duration = 100;
 unsigned long last_update_ms = 0;
 
 void updateTimer() {
@@ -141,8 +185,7 @@ void setup() {
   Wire.begin(16, 17);
   Wire1.begin(27, 26);
 
-  phIo.init();
-  ecIo.init();
+  ios.init_all();
 
   u8g2.begin();
   u8g2.setFont(fontName);
@@ -156,14 +199,18 @@ void loop() {
   updateTimer();
 
   // Run every 400 ms (update_duration) when measuring
-  if (request_update && phIo.isEnabled()) {
+  if (request_update) {
+    Serial.printf("is_updated: %d\n", ios.is_updated);
     request_update = false;
 
-    phIo.exec();
-    ecIo.exec();
+    ios.handle_all();
 
-    nav.idleChanged = true;
-    nav.refresh();
+    Serial.printf("is_updated: %d\n", ios.is_updated);
+
+    if (ios.is_updated) {
+      nav.idleChanged = true;
+      nav.refresh();
+    }
   }
 
   nav.doInput();

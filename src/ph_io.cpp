@@ -1,6 +1,9 @@
 #include "ph_io.h"
 
-PhIo::PhIo(OneWire &one_wire) : dallas_sensor_(&one_wire) {}
+namespace sdg {
+
+PhIo::PhIo(OneWire &one_wire, std::function<void()> updated)
+    : dallas_sensor_(&one_wire), updated_(updated) {}
 
 void PhIo::init() {
   dallas_sensor_.begin();
@@ -97,6 +100,7 @@ void PhIo::performPhReading() {
       }
       // switch back to ask for a new reading
       reading_request_phase_ = true;
+      updated_();
     }
   }
 }
@@ -121,6 +125,7 @@ void PhIo::performTemperatureReading() {
         dallas_status_ = DallasError::SUCCESS;
       }
       dallas_request_phase_ = true;
+      updated_();
     }
   }
 }
@@ -274,3 +279,5 @@ uint8_t PhIo::setStableReadingTotal(uint8_t stable_reading_total) {
   }
   return stable_reading_total_;
 }
+
+}  // namespace sdg

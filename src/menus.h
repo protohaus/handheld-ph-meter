@@ -11,16 +11,16 @@
 #include <menuIo.h>
 #include <nav.h>
 
-#include "ec_io.h"
-#include "ph_io.h"
+#include "ios.h"
 
 namespace sdg {
 
 class Menus {
  public:
-  Menus(PhIo* phIo = nullptr, EcIo* ecIo = nullptr);
+  Menus(Ios& ios);
 
   result measurement(menuOut& o, idleEvent e);
+  result waterLevel(menuOut& o, idleEvent e);
 
  private:
   result printPh(menuOut& o, idleEvent e, int& v_offset);
@@ -33,8 +33,7 @@ class Menus {
 
   void printSpinner(Menu::menuOut& o);
 
-  PhIo* phIo_;
-  EcIo* ecIo_;
+  Ios& ios_;
 
   int spinner_state = 0;
   long spinner_last_update_ms = 0;
